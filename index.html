@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UI Alignment Checker</title>
+    <style>
+        /* CSS will be defined later */
+        #container {
+            position: relative;
+            display: inline-block;
+            margin-top: 20px;
+        }
+
+        #screenshot {
+            display: block;
+            max-width: 100%;
+        }
+
+        .line {
+            position: absolute;
+            background-color: red;
+            opacity: 0.5;
+        }
+
+        .line.selected {
+            background-color: blue;
+        }
+
+        #control-panel button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>UI Alignment Checker</h1>
+
+    <!-- File upload input -->
+    <div>
+        <label for="fileInput">Upload Screenshot:</label>
+        <input type="file" id="fileInput" accept="image/*">
+    </div>
+
+    <!-- Container for the image and lines -->
+    <div id="container" style="position: relative; display: inline-block;">
+        <img id="screenshot" alt="Uploaded Screenshot">
+        <div id="control-panel"
+            style="position: absolute; bottom: 10px; right: 10px; display: none; background: white; border: 1px solid black; padding: 5px;">
+        </div>
+    </div>
+
+    <!-- Toolbar for drawing lines and clearing them -->
+    <div>
+        <button id="addVerticalButton">Add Vertical Line</button>
+        <button id="addHorizontalButton">Add Horizontal Line</button>
+        <button id="clearButton">Clear All Lines</button>
+    </div>
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const container = document.getElementById('container');
+        const img = document.getElementById('screenshot');
+        const addVerticalButton = document.getElementById('addVerticalButton');
+        const addHorizontalButton = document.getElementById('addHorizontalButton');
+        const clearButton = document.getElementById('clearButton');
+
+        fileInput.addEventListener('change', function () {
+            // Clear existing lines
+            container.querySelectorAll('.line').forEach(line => line.remove());
+
+            const file = fileInput.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const image = new Image();
+                image.onload = function () {
+                    // Calculate maximum dimensions (90% of viewport)
+                    const maxWidth = window.innerWidth * 0.9;
+                    const maxHeight = window.innerHeight * 0.9;
+                    const ratio = image.width / image.height;
+
+                    let newWidth, newHeight;
+                    if (image.width > maxWidth || image.height > maxHeight) {
+                        if (image.width / maxWidth > image.height / maxHeight) {
+                            newWidth = maxWidth;
+                            newHeight = maxWidth / ratio;
+                        } else {
+                            newHeight = maxHeight;
+                            newWidth = maxHeight * ratio;
+                        }
+                    } else {
+                        newWidth = image.width;
+                        newHeight = image.height;
+                    }
+
+                    // Create canvas for resizing
+                    const canvas = document.createElement('canvas');
+                    canvas.width = newWidth;
+                    canvas.height = newHeight;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(image, 0, 0, newWidth, newHeight);
+
+                    // Set image src and container size
+                    img.src = canvas.toDataURL();
+                    container.style.width = newWidth + 'px';
+                    container.style.height = newHeight + 'px';
+                };
+                image.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        function placeVerticalLine(event) {
+            const line = document.createElement('div');
+            line.className = 'line';
+            line.style.left = event.offsetX + 'px';
+            line.style.top = '0';
+            line.style.width = '2px';
+            line.style.height = '100%';
+            line.dataset.type = 'vertical';
+            container.appendChild(line);
+
+            // Existing click event for selection
+            line.addEventListener('click', function () {
+                selectLine(line);
+            });
+
+            // New double-click event to remove the line
+            line.addEventListener('dblclick', function () {
+                removeLine(line);
+            });
+        }
+
+        function placeHorizontalLine(event) {
+            const line = document.createElement('div');
+            line.className = 'line';
+            line.style.top = event.offsetY + 'px';
+            line.style.left = '0';
+            line.style.height = '2px';
+            line.style.width = '100%';
+            line.dataset.type = 'horizontal';
+            container.appendChild(line);
+
+            // Existing click event for selection
+            line.addEventListener('click', function () {
+                selectLine(line);
+            });
+
+            // New double-click event to remove the line
+            line.addEventListener('dblclick', function () {
+                removeLine(line);
+            });
+        }
+
+        addVerticalButton.addEventListener('click', function () {
+            img.addEventListener('click', placeVerticalLine, { once: true });
+        });
+
+        addHorizontalButton.addEventListener('click', function () {
+            img.addEventListener('click', placeHorizontalLine, { once: true });
+        });
+
+        clearButton.addEventListener('click', function () {
+            container.querySelectorAll('.line').forEach(line => line.remove());
+        });
+
+        let selectedLine = null;
+
+        function selectLine(line) {
+            if (selectedLine) {
+                selectedLine.classList.remove('selected'); // Deselect previous line
+            }
+            if (line.parentNode) { // Verify the line still exists in the DOM
+                selectedLine = line;
+                selectedLine.classList.add('selected'); // Mark as selected
+                showControlPanel(line); // Show control panel for the line
+            } else {
+                selectedLine = null; // Clear selection if line is gone
+                document.getElementById('control-panel').style.display = 'none';
+            }
+        }
+
+        function showControlPanel(line) {
+            const controlPanel = document.getElementById('control-panel');
+            controlPanel.innerHTML = ''; // Clear previous buttons
+            const directions = ['up', 'down', 'left', 'right'];
+            directions.forEach(dir => {
+                const button = document.createElement('button');
+                button.textContent = dir.charAt(0).toUpperCase() + dir.slice(1);
+                if ((line.dataset.type === 'vertical' && (dir === 'up' || dir === 'down')) ||
+                    (line.dataset.type === 'horizontal' && (dir === 'left' || dir === 'right'))) {
+                    button.disabled = true;
+                } else {
+                    button.addEventListener('click', function () {
+                        moveLine(line, dir);
+                    });
+                }
+                controlPanel.appendChild(button);
+            });
+            controlPanel.style.display = 'block';
+        }
+
+
+        function moveLine(line, direction) {
+            if (line.dataset.type === 'vertical' && (direction === 'left' || direction === 'right')) {
+                let left = parseInt(line.style.left, 10);
+                if (direction === 'left') left -= 1;
+                else left += 1;
+                line.style.left = left + 'px';
+            } else if (line.dataset.type === 'horizontal' && (direction === 'up' || direction === 'down')) {
+                let top = parseInt(line.style.top, 10);
+                if (direction === 'up') top -= 1;
+                else top += 1;
+                line.style.top = top + 'px';
+            }
+        }
+
+
+
+        function removeLine(line) {
+            line.remove(); // Remove the line from the DOM
+            if (selectedLine === line) { // Check if the removed line was selected
+                selectedLine = null; // Clear the selection
+                document.getElementById('control-panel').style.display = 'none'; // Hide control panel
+            }
+        }
+
+
+
+    </script>
+</body>
+
+</html>
