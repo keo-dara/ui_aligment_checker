@@ -77,8 +77,7 @@
             reader.onload = function (e) {
                 const image = new Image();
                 image.onload = function () {
-                    // Use 95% of the window size instead of 90%
-                    const viewportPercentage = 0.95;
+                    const viewportPercentage = 1;
                     const maxWidth = window.innerWidth * viewportPercentage;
                     const maxHeight = window.innerHeight * viewportPercentage;
                     const ratio = image.width / image.height;
