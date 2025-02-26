@@ -67,7 +67,7 @@
         const clearButton = document.getElementById('clearButton');
 
         fileInput.addEventListener('change', function () {
-            // Clear existing lines
+            // Clear any existing alignment lines
             container.querySelectorAll('.line').forEach(line => line.remove());
 
             const file = fileInput.files[0];
@@ -77,12 +77,14 @@
             reader.onload = function (e) {
                 const image = new Image();
                 image.onload = function () {
-                    // Calculate maximum dimensions (90% of viewport)
-                    const maxWidth = window.innerWidth * 0.9;
-                    const maxHeight = window.innerHeight * 0.9;
+                    // Use 95% of the window size instead of 90%
+                    const viewportPercentage = 0.95;
+                    const maxWidth = window.innerWidth * viewportPercentage;
+                    const maxHeight = window.innerHeight * viewportPercentage;
                     const ratio = image.width / image.height;
 
                     let newWidth, newHeight;
+                    // Resize if the image is larger than the max dimensions
                     if (image.width > maxWidth || image.height > maxHeight) {
                         if (image.width / maxWidth > image.height / maxHeight) {
                             newWidth = maxWidth;
@@ -92,18 +94,19 @@
                             newWidth = maxHeight * ratio;
                         }
                     } else {
+                        // Use original size if smaller than max dimensions
                         newWidth = image.width;
                         newHeight = image.height;
                     }
 
-                    // Create canvas for resizing
+                    // Resize the image using a canvas
                     const canvas = document.createElement('canvas');
                     canvas.width = newWidth;
                     canvas.height = newHeight;
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(image, 0, 0, newWidth, newHeight);
 
-                    // Set image src and container size
+                    // Update the image and container
                     img.src = canvas.toDataURL();
                     container.style.width = newWidth + 'px';
                     container.style.height = newHeight + 'px';
