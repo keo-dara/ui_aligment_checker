@@ -32,6 +32,21 @@
             opacity: 0.5;
             cursor: not-allowed;
         }
+
+        #uploadLabel {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+
+        #uploadLabel:hover {
+            background-color: #0056b3;
+            /* Optional hover effect */
+        }
     </style>
 </head>
 
@@ -40,9 +55,10 @@
 
     <!-- File upload input -->
     <div>
-        <label for="fileInput">Upload Screenshot:</label>
-        <input type="file" id="fileInput" accept="image/*">
+        <label for="fileInput" id="uploadLabel">Upload Image</label>
+        <input type="file" id="fileInput" accept="image/*" style="display: none;">
     </div>
+
 
     <!-- Container for the image and lines -->
     <div id="container" style="position: relative; display: inline-block;">
@@ -67,23 +83,26 @@
         const clearButton = document.getElementById('clearButton');
 
         fileInput.addEventListener('change', function () {
-            // Clear any existing alignment lines
+            // Clear existing lines
             container.querySelectorAll('.line').forEach(line => line.remove());
 
+            // Update label to "Replace Image"
+            document.getElementById('uploadLabel').textContent = 'Replace Image';
+
             const file = fileInput.files[0];
-            if (!file) return;
+            if (!file) return; // Do nothing if no file is selected
 
             const reader = new FileReader();
             reader.onload = function (e) {
                 const image = new Image();
                 image.onload = function () {
-                    const viewportPercentage = 1.5;
+                    // Image resizing logic (adjust as per your tool)
+                    const viewportPercentage = 0.95;
                     const maxWidth = window.innerWidth * viewportPercentage;
                     const maxHeight = window.innerHeight * viewportPercentage;
                     const ratio = image.width / image.height;
 
                     let newWidth, newHeight;
-                    // Resize if the image is larger than the max dimensions
                     if (image.width > maxWidth || image.height > maxHeight) {
                         if (image.width / maxWidth > image.height / maxHeight) {
                             newWidth = maxWidth;
@@ -93,19 +112,16 @@
                             newWidth = maxHeight * ratio;
                         }
                     } else {
-                        // Use original size if smaller than max dimensions
                         newWidth = image.width;
                         newHeight = image.height;
                     }
 
-                    // Resize the image using a canvas
                     const canvas = document.createElement('canvas');
                     canvas.width = newWidth;
                     canvas.height = newHeight;
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(image, 0, 0, newWidth, newHeight);
 
-                    // Update the image and container
                     img.src = canvas.toDataURL();
                     container.style.width = newWidth + 'px';
                     container.style.height = newHeight + 'px';
@@ -120,7 +136,7 @@
             line.className = 'line';
             line.style.left = event.offsetX + 'px';
             line.style.top = '0';
-            line.style.width = '2px';
+            line.style.width = '5px';
             line.style.height = '100%';
             line.dataset.type = 'vertical';
             container.appendChild(line);
@@ -141,7 +157,7 @@
             line.className = 'line';
             line.style.top = event.offsetY + 'px';
             line.style.left = '0';
-            line.style.height = '2px';
+            line.style.height = '5px';
             line.style.width = '100%';
             line.dataset.type = 'horizontal';
             container.appendChild(line);
