@@ -6,7 +6,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>UI Alignment Checker</title>
     <style>
-        /* CSS will be defined later */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        
+        h1 {
+            color: #333;
+        }
+        
         #container {
             position: relative;
             display: inline-block;
@@ -20,17 +28,60 @@
 
         .line {
             position: absolute;
-            background-color: red;
-            opacity: 0.5;
+            background-color: rgba(255, 0, 0, 0.5);
+            cursor: pointer;
         }
 
         .line.selected {
-            background-color: blue;
+            background-color: rgba(0, 0, 255, 0.7);
+        }
+
+        /* Floating control panel styles */
+        #control-panel {
+            position: fixed; /* Changed from absolute to fixed */
+            display: none;
+            background: white;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+        }
+        
+        #control-panel button {
+            margin: 2px;
+            padding: 5px 10px;
+            border: none;
+            background: #f0f0f0;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        
+        #control-panel button:hover {
+            background: #e0e0e0;
         }
 
         #control-panel button:disabled {
             opacity: 0.5;
             cursor: not-allowed;
+        }
+
+        .toolbar {
+            margin-top: 15px;
+        }
+        
+        .toolbar button {
+            padding: 8px 15px;
+            margin-right: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .toolbar button:hover {
+            background-color: #45a049;
         }
 
         #uploadLabel {
@@ -41,11 +92,11 @@
             cursor: pointer;
             border-radius: 5px;
             font-weight: bold;
+            margin-bottom: 15px;
         }
 
         #uploadLabel:hover {
             background-color: #0056b3;
-            /* Optional hover effect */
         }
     </style>
 </head>
@@ -59,21 +110,21 @@
         <input type="file" id="fileInput" accept="image/*" style="display: none;">
     </div>
 
-
     <!-- Container for the image and lines -->
-    <div id="container" style="position: relative; display: inline-block;">
+    <div id="container">
         <img id="screenshot" alt="Uploaded Screenshot">
-        <div id="control-panel"
-            style="position: absolute; bottom: 10px; right: 10px; display: none; background: white; border: 1px solid black; padding: 5px;">
-        </div>
     </div>
 
+    <!-- Floating control panel -->
+    <div id="control-panel"></div>
+
     <!-- Toolbar for drawing lines and clearing them -->
-    <div>
+    <div class="toolbar">
         <button id="addVerticalButton">Add Vertical Line</button>
         <button id="addHorizontalButton">Add Horizontal Line</button>
         <button id="clearButton">Clear All Lines</button>
     </div>
+    
     <script>
         const fileInput = document.getElementById('fileInput');
         const container = document.getElementById('container');
@@ -81,10 +132,11 @@
         const addVerticalButton = document.getElementById('addVerticalButton');
         const addHorizontalButton = document.getElementById('addHorizontalButton');
         const clearButton = document.getElementById('clearButton');
+        const controlPanel = document.getElementById('control-panel');
 
         fileInput.addEventListener('change', function () {
             // Clear existing lines
-            container.querySelectorAll('.line').forEach(line => line.remove());
+            // container.querySelectorAll('.line').forEach(line => line.remove());
 
             // Update label to "Replace Image"
             document.getElementById('uploadLabel').textContent = 'Replace Image';
@@ -136,18 +188,20 @@
             line.className = 'line';
             line.style.left = event.offsetX + 'px';
             line.style.top = '0';
-            line.style.width = '5px';
+            line.style.width = '2px';
             line.style.height = '100%';
             line.dataset.type = 'vertical';
             container.appendChild(line);
 
             // Existing click event for selection
-            line.addEventListener('click', function () {
-                selectLine(line);
+            line.addEventListener('click', function (e) {
+                e.stopPropagation(); // Prevent container click
+                selectLine(line, e);
             });
 
             // New double-click event to remove the line
-            line.addEventListener('dblclick', function () {
+            line.addEventListener('dblclick', function (e) {
+                e.stopPropagation(); // Prevent propagation
                 removeLine(line);
             });
         }
@@ -157,18 +211,20 @@
             line.className = 'line';
             line.style.top = event.offsetY + 'px';
             line.style.left = '0';
-            line.style.height = '5px';
+            line.style.height = '2px';
             line.style.width = '100%';
             line.dataset.type = 'horizontal';
             container.appendChild(line);
 
             // Existing click event for selection
-            line.addEventListener('click', function () {
-                selectLine(line);
+            line.addEventListener('click', function (e) {
+                e.stopPropagation(); // Prevent container click
+                selectLine(line, e);
             });
 
             // New double-click event to remove the line
-            line.addEventListener('dblclick', function () {
+            line.addEventListener('dblclick', function (e) {
+                e.stopPropagation(); // Prevent propagation
                 removeLine(line);
             });
         }
@@ -183,71 +239,158 @@
 
         clearButton.addEventListener('click', function () {
             container.querySelectorAll('.line').forEach(line => line.remove());
+            hideControlPanel();
+        });
+
+        // Click outside to deselect and hide control panel
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.line') && !e.target.closest('#control-panel')) {
+                if (selectedLine) {
+                    selectedLine.classList.remove('selected');
+                    selectedLine = null;
+                }
+                hideControlPanel();
+            }
         });
 
         let selectedLine = null;
 
-        function selectLine(line) {
+        function selectLine(line, event) {
             if (selectedLine) {
                 selectedLine.classList.remove('selected'); // Deselect previous line
             }
-            if (line.parentNode) { // Verify the line still exists in the DOM
-                selectedLine = line;
-                selectedLine.classList.add('selected'); // Mark as selected
-                showControlPanel(line); // Show control panel for the line
-            } else {
-                selectedLine = null; // Clear selection if line is gone
-                document.getElementById('control-panel').style.display = 'none';
-            }
+            
+            selectedLine = line;
+            selectedLine.classList.add('selected'); // Mark as selected
+            
+            // Position control panel near the click
+            showControlPanel(line, event);
         }
 
-        function showControlPanel(line) {
-            const controlPanel = document.getElementById('control-panel');
+        function showControlPanel(line, event) {
             controlPanel.innerHTML = ''; // Clear previous buttons
-            const directions = ['up', 'down', 'left', 'right'];
-            directions.forEach(dir => {
+            
+            // Create movement buttons
+            const moveButtons = {
+                '◀️': 'left',
+                '▶️': 'right',
+                '🔼': 'up',
+                '🔽': 'down'
+            };
+            
+            for (const [symbol, direction] of Object.entries(moveButtons)) {
                 const button = document.createElement('button');
-                button.textContent = dir.charAt(0).toUpperCase() + dir.slice(1);
-                if ((line.dataset.type === 'vertical' && (dir === 'up' || dir === 'down')) ||
-                    (line.dataset.type === 'horizontal' && (dir === 'left' || dir === 'right'))) {
+                button.textContent = symbol;
+                
+                // Disable buttons that don't apply to the line type
+                if ((line.dataset.type === 'vertical' && (direction === 'up' || direction === 'down')) ||
+                    (line.dataset.type === 'horizontal' && (direction === 'left' || direction === 'right'))) {
                     button.disabled = true;
                 } else {
-                    button.addEventListener('click', function () {
-                        moveLine(line, dir);
+                    button.addEventListener('click', function(e) {
+                        e.stopPropagation(); // Prevent closing panel
+                        moveLine(line, direction);
                     });
                 }
                 controlPanel.appendChild(button);
+            }
+            
+            // Add delete button
+            const deleteButton = document.createElement('button');
+            deleteButton.textContent = '🗑️';
+            deleteButton.style.marginLeft = '5px';
+            deleteButton.addEventListener('click', function(e) {
+                e.stopPropagation(); // Prevent propagation
+                removeLine(line);
             });
+            controlPanel.appendChild(deleteButton);
+            
+            // Position the control panel
+            positionControlPanel(event);
+            
+            // Show the control panel
             controlPanel.style.display = 'block';
         }
+        
+        function positionControlPanel(event) {
+            const rect = container.getBoundingClientRect();
+            
+            // Calculate position (20px offset from cursor)
+            let x, y;
+            
+            if (event) {
+                // If the event exists (clicked on the line), position near the click
+                x = event.clientX + 10;
+                y = event.clientY + 10;
+            } else if (selectedLine) {
+                // Otherwise, position near the selected line
+                const lineRect = selectedLine.getBoundingClientRect();
+                
+                if (selectedLine.dataset.type === 'vertical') {
+                    x = lineRect.right + 10;
+                    y = lineRect.top + 50;
+                } else {
+                    x = lineRect.left + 50;
+                    y = lineRect.bottom + 10;
+                }
+            } else {
+                return; // No position reference
+            }
+            
+            // Make sure control panel stays within viewport
+            const panelWidth = 150; // Approximate width
+            const panelHeight = 40; // Approximate height
+            
+            // Adjust if too close to right edge
+            if (x + panelWidth > window.innerWidth) {
+                x = window.innerWidth - panelWidth - 10;
+            }
+            
+            // Adjust if too close to bottom edge
+            if (y + panelHeight > window.innerHeight) {
+                y = window.innerHeight - panelHeight - 10;
+            }
+            
+            controlPanel.style.left = x + 'px';
+            controlPanel.style.top = y + 'px';
+        }
 
+        function hideControlPanel() {
+            controlPanel.style.display = 'none';
+        }
 
         function moveLine(line, direction) {
-            if (line.dataset.type === 'vertical' && (direction === 'left' || direction === 'right')) {
-                let left = parseInt(line.style.left, 10);
-                if (direction === 'left') left -= 1;
-                else left += 1;
-                line.style.left = left + 'px';
-            } else if (line.dataset.type === 'horizontal' && (direction === 'up' || direction === 'down')) {
-                let top = parseInt(line.style.top, 10);
-                if (direction === 'up') top -= 1;
-                else top += 1;
-                line.style.top = top + 'px';
+            const step = 1; // 1px movement step
+            
+            if (line.dataset.type === 'vertical') {
+                if (direction === 'left' || direction === 'right') {
+                    let left = parseInt(line.style.left, 10);
+                    if (direction === 'left') left -= step;
+                    else left += step;
+                    line.style.left = left + 'px';
+                }
+            } else if (line.dataset.type === 'horizontal') {
+                if (direction === 'up' || direction === 'down') {
+                    let top = parseInt(line.style.top, 10);
+                    if (direction === 'up') top -= step;
+                    else top += step;
+                    line.style.top = top + 'px';
+                }
+            }
+            
+            // Update control panel position after moving the line
+            if (selectedLine === line) {
+                positionControlPanel(null);
             }
         }
-
-
 
         function removeLine(line) {
-            line.remove(); // Remove the line from the DOM
-            if (selectedLine === line) { // Check if the removed line was selected
-                selectedLine = null; // Clear the selection
-                document.getElementById('control-panel').style.display = 'none'; // Hide control panel
+            if (selectedLine === line) {
+                hideControlPanel(); // Hide control panel
+                selectedLine = null; // Clear selection
             }
+            line.remove(); // Remove the line from the DOM
         }
-
-
-
     </script>
 </body>
 
